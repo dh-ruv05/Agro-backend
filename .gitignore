@@ -47,5 +47,3 @@ Thumbs.db
 *.h5
 *.pkl
 *.model
-datasets/
-models/ 
