@@ -14,7 +14,7 @@ from datetime import datetime
 from PIL import Image
 import json
 from io import BytesIO
-from backend.plantheight import calculate_plant_height
+from plantheight import calculate_plant_height
 from PIL import Image
 import torchvision.transforms.functional as TF
 import numpy as np

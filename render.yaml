@@ -18,5 +18,7 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: GEE_SERVICE_ACCOUNT
+        sync: false  # Add this in Render dashboard
     healthCheckPath: /test
     autoDeploy: true 

@@ -3,8 +3,12 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from config import Config
+from ee_init import initialize_earth_engine
 
 def create_app():
+    # Initialize Earth Engine
+    initialize_earth_engine()
+    
     app = Flask(__name__)
     load_dotenv()
     
