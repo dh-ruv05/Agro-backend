@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, Blueprint, session
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from backend.config import Config
+from config import Config
 
 def create_app():
     app = Flask(__name__)
@@ -30,8 +30,8 @@ def create_app():
     
     # Lazy loading of blueprints to reduce initial memory usage
     def register_blueprints():
-        from backend.test import bp2
-        from backend.test2 import bp1
+        from test import bp2
+        from test2 import bp1
         app.register_blueprint(bp1, url_prefix='/')
         app.register_blueprint(bp2, url_prefix='/')
     
