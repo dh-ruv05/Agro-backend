@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, Blueprint, session
+from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from backend.config import Config
@@ -10,9 +11,21 @@ def create_app():
     # Load configuration
     app.config.from_object(Config)
     
+    # Configure CORS
+    CORS(app, resources={
+        r"/*": {
+            "origins": [
+                "http://localhost:3000",  # Local frontend
+                "https://your-frontend-domain.vercel.app"  # Replace with your Vercel domain
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
+    
     @app.route('/test')
     def test():
-        return 'Application is running!'
+        return {'status': 'success', 'message': 'Application is running!'}
     
     # Lazy loading of blueprints to reduce initial memory usage
     def register_blueprints():
@@ -25,8 +38,10 @@ def create_app():
     
     return app
 
-# Only create the app instance if running directly
+# Create the app instance
+app = create_app()
+
+# Only run the app if running directly
 if __name__ == '__main__':
-    app = create_app()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
