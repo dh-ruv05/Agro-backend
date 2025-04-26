@@ -16,7 +16,8 @@ def create_app():
         r"/*": {
             "origins": [
                 "http://localhost:3000",  # Local frontend
-                "https://your-frontend-domain.vercel.app"  # Replace with your Vercel domain
+                "https://your-frontend-domain.vercel.app",  # Vercel domain
+                "https://*.onrender.com"  # Render domains
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
