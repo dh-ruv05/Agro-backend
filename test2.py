@@ -32,11 +32,14 @@ import google.generativeai as genai
 import os
 from datetime import datetime, timedelta
 from utils.captcha import verify_captcha
+from ee_init import initialize_earth_engine
 
 load_dotenv()
 
 bp1 = Blueprint('bp1', __name__)
 
+# Global variable to track Earth Engine initialization status
+ee_initialized = False
 
 cloudinary.config(
   cloud_name = os.getenv("CLOUD_NAME"),
@@ -60,70 +63,79 @@ class TempModel(nn.Module):
 # except Exception as e:
 #     print("Please authenticate Google Earth Engine first")
 
-# # Configure Gemini API
-# GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-# genai.configure(api_key=GOOGLE_API_KEY)
-# model = genai.GenerativeModel('gemini-2.0-flash')
+# Configure Gemini API
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-# def get_ndvi_ndwi(latitude, longitude):
-#     """Calculate NDVI and NDWI for the given location"""
-#     point = ee.Geometry.Point([longitude, latitude])
+def get_ndvi_ndwi(latitude, longitude):
+    """Calculate NDVI and NDWI for the given location"""
+    if not ee_initialized:
+        raise RuntimeError("Earth Engine not initialized")
+        
+    point = ee.Geometry.Point([longitude, latitude])
     
-#     # Get the date range (last 3 months)
-#     end_date = datetime.now()
-#     start_date = end_date - timedelta(days=90)
+    # Get the date range (last 3 months)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=90)
     
-#     # Get Sentinel-2 imagery
-#     sentinel = ee.ImageCollection('COPERNICUS/S2_SR') \
-#         .filterBounds(point) \
-#         .filterDate(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')) \
-#         .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
-#         .median()
+    # Get Sentinel-2 imagery
+    sentinel = ee.ImageCollection('COPERNICUS/S2_SR') \
+        .filterBounds(point) \
+        .filterDate(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')) \
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
+        .median()
     
-#     # Calculate NDVI
-#     ndvi = sentinel.normalizedDifference(['B8', 'B4']).rename('NDVI')
+    # Calculate NDVI
+    ndvi = sentinel.normalizedDifference(['B8', 'B4']).rename('NDVI')
     
-#     # Calculate NDWI
-#     ndwi = sentinel.normalizedDifference(['B3', 'B8']).rename('NDWI')
+    # Calculate NDWI
+    ndwi = sentinel.normalizedDifference(['B3', 'B8']).rename('NDWI')
     
-#     # Get the values at the point
-#     ndvi_value = ndvi.reduceRegion(ee.Reducer.mean(), point, 10).get('NDVI').getInfo()
-#     ndwi_value = ndwi.reduceRegion(ee.Reducer.mean(), point, 10).get('NDWI').getInfo()
+    # Get the values at the point
+    ndvi_value = ndvi.reduceRegion(ee.Reducer.mean(), point, 10).get('NDVI').getInfo()
+    ndwi_value = ndwi.reduceRegion(ee.Reducer.mean(), point, 10).get('NDWI').getInfo()
     
-#     return {
-#         'ndvi': ndvi_value,
-#         'ndwi': ndwi_value
-#     }
+    return {
+        'ndvi': ndvi_value,
+        'ndwi': ndwi_value
+    }
 
-# def get_soil_type(latitude, longitude):
-#     """Get soil type information using Google Earth Engine"""
-#     point = ee.Geometry.Point([longitude, latitude])
+def get_soil_type(latitude, longitude):
+    """Get soil type information using Google Earth Engine"""
+    if not ee_initialized:
+        raise RuntimeError("Earth Engine not initialized")
+        
+    point = ee.Geometry.Point([longitude, latitude])
     
-#     # Use OpenLandMap soil pH dataset instead
-#     soil = ee.Image('OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02')
-#     soil_value = soil.reduceRegion(ee.Reducer.mean(), point, 10).get('b0').getInfo()
+    # Use OpenLandMap soil pH dataset
+    soil = ee.Image('OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02')
+    soil_value = soil.reduceRegion(ee.Reducer.mean(), point, 10).get('b0').getInfo()
     
-#     # Convert the pH value to a more readable format (original values are in pH * 10)
-#     if soil_value is not None:
-#         soil_value = soil_value / 10.0
-#     else:
-#         soil_value = 7.0  # Default neutral pH if no data available
+    # Convert the pH value to a more readable format (original values are in pH * 10)
+    if soil_value is not None:
+        soil_value = soil_value / 10.0
+    else:
+        soil_value = 7.0  # Default neutral pH if no data available
     
-#     return soil_value
+    return soil_value
 
-# def get_weather_data(latitude, longitude):
-#     """Get historical weather data"""
-#     point = ee.Geometry.Point([longitude, latitude])
+def get_weather_data(latitude, longitude):
+    """Get historical weather data"""
+    if not ee_initialized:
+        raise RuntimeError("Earth Engine not initialized")
+        
+    point = ee.Geometry.Point([longitude, latitude])
     
-#     # Get ERA5 monthly data
-#     weather = ee.ImageCollection('ECMWF/ERA5/MONTHLY') \
-#         .filterBounds(point) \
-#         .select(['total_precipitation', 'temperature_2m']) \
-#         .mean()
+    # Get ERA5 monthly data
+    weather = ee.ImageCollection('ECMWF/ERA5/MONTHLY') \
+        .filterBounds(point) \
+        .select(['total_precipitation', 'temperature_2m']) \
+        .mean()
     
-#     weather_data = weather.reduceRegion(ee.Reducer.mean(), point, 10).getInfo()
+    weather_data = weather.reduceRegion(ee.Reducer.mean(), point, 10).getInfo()
     
-#     return weather_data
+    return weather_data
 
 # def get_crop_recommendation(ndvi, ndwi, soil_ph, weather_data, farmer_responses):
 #     """Generate crop recommendation using Gemini API"""
@@ -167,20 +179,22 @@ class TempModel(nn.Module):
 #         return "Unable to generate crop recommendations at the moment. Please try again later."
 
 #Importing models
-with open('models/wheat_price_prediction.pkl', 'rb') as Wheat:
-    model1 = pickle.load(Wheat)
-with open('models/Cotton_price_prediction.pkl', 'rb') as Cotton:
-    model2 = pickle.load(Cotton)
-with open('models/Gram_price_prediction.pkl', 'rb') as Gram:
-    model3 = pickle.load(Gram)
-with open('models/Jute_price_prediction.pkl', 'rb') as Jute:
-    model4 = pickle.load(Jute)
-with open('models/Maize_price_prediction.pkl', 'rb') as Maize:
-    model5 = pickle.load(Maize)
-with open('models/Moong_price_prediction.pkl', 'rb') as Moong:
-    model6 = pickle.load(Moong)
-with open('models/Crop_Recommendation.pkl', 'rb') as cr:
-    model7 = pickle.load(cr)
+def load_model_safely(path, default_return=None):
+    try:
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+    except Exception as e:
+        print(f"Warning: Could not load model from {path}: {str(e)}")
+        return default_return
+
+# Load models with error handling
+model1 = load_model_safely('models/wheat_price_prediction.pkl')  # Wheat
+model2 = load_model_safely('models/Cotton_price_prediction.pkl')  # Cotton
+model3 = load_model_safely('models/Gram_price_prediction.pkl')   # Gram
+model4 = load_model_safely('models/Jute_price_prediction.pkl')   # Jute
+model5 = load_model_safely('models/Maize_price_prediction.pkl')  # Maize
+model6 = load_model_safely('models/Moong_price_prediction.pkl')  # Moong
+model7 = load_model_safely('models/Crop_Recommendation.pkl')     # Crop Recommendation
 
 # Image size used during training
 IMAGE_SIZE = (224, 224)
@@ -322,30 +336,36 @@ def login():
 
 @bp1.route('/predict_price', methods=['GET', 'POST'])
 def predict_price():
-    price=None
-    if request.method=='POST':
-        # Get the full date string from the form (e.g., "2025-04-10")
-        crop = request.form['crop']
-        date_str = request.form['date']
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-        # Extract month and year
-        month = date_obj.month
-        year = date_obj.year
-        rainfall = float(request.form.get('rainfall'))
-        features = np.array([[month, year, rainfall]])
-        if crop=="Wheat":
-            price = model1.predict(features)[0]
-        elif crop=="Cotton":
-            price = model2.predict(features)[0]
-        elif crop=="Gram":
-            price = model3.predict(features)[0]
-        elif crop=="Jute":
-            price = model4.predict(features)[0]
-        elif crop=="Maize":
-            price = model5.predict(features)[0]
-        elif crop=="Moong":
-            price = model6.predict(features)[0]
-        return render_template('price.html', price = price)
+    price = None
+    if request.method == 'POST':
+        try:
+            crop = request.form['crop']
+            date_str = request.form['date']
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            month = date_obj.month
+            year = date_obj.year
+            rainfall = float(request.form.get('rainfall'))
+            features = np.array([[month, year, rainfall]])
+            
+            # Dictionary mapping crops to models
+            crop_models = {
+                "Wheat": model1,
+                "Cotton": model2,
+                "Gram": model3,
+                "Jute": model4,
+                "Maize": model5,
+                "Moong": model6
+            }
+            
+            # Check if model is available
+            if crop in crop_models and crop_models[crop] is not None:
+                price = crop_models[crop].predict(features)[0]
+            else:
+                return render_template('price.html', error="Model not available for this crop")
+                
+        except Exception as e:
+            return render_template('price.html', error=f"Error predicting price: {str(e)}")
+            
     return render_template('price.html', price=price)
 
 # @bp1.route('/crop_rec', methods=['GET','POST'])
@@ -595,3 +615,54 @@ def problemsSolved():
 #             'status': 'error',
 #             'message': str(e)
 #         })
+
+@bp1.before_app_first_request
+def setup():
+    """Initialize Earth Engine before the first request"""
+    global ee_initialized
+    try:
+        initialize_earth_engine()
+        ee_initialized = True
+        print("Earth Engine initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize Earth Engine: {str(e)}")
+        ee_initialized = False
+
+@bp1.route('/get_ndvi', methods=['POST'])
+def get_ndvi():
+    if not ee_initialized:
+        return jsonify({
+            'error': 'Earth Engine not initialized. Please try again later.'
+        }), 503
+        
+    try:
+        data = request.get_json()
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        
+        indices = get_ndvi_ndwi(latitude, longitude)
+        return jsonify(indices)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp1.route('/get_weather', methods=['POST'])
+def get_weather():
+    if not ee_initialized:
+        return jsonify({
+            'error': 'Earth Engine not initialized. Please try again later.'
+        }), 503
+        
+    try:
+        data = request.get_json()
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        
+        weather_data = get_weather_data(latitude, longitude)
+        soil_ph = get_soil_type(latitude, longitude)
+        
+        return jsonify({
+            'weather': weather_data,
+            'soil_ph': soil_ph
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
