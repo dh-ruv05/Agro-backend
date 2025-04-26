@@ -336,37 +336,7 @@ def login():
 
 @bp1.route('/predict_price', methods=['GET', 'POST'])
 def predict_price():
-    price = None
-    if request.method == 'POST':
-        try:
-            crop = request.form['crop']
-            date_str = request.form['date']
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-            month = date_obj.month
-            year = date_obj.year
-            rainfall = float(request.form.get('rainfall'))
-            features = np.array([[month, year, rainfall]])
-            
-            # Dictionary mapping crops to models
-            crop_models = {
-                "Wheat": model1,
-                "Cotton": model2,
-                "Gram": model3,
-                "Jute": model4,
-                "Maize": model5,
-                "Moong": model6
-            }
-            
-            # Check if model is available
-            if crop in crop_models and crop_models[crop] is not None:
-                price = crop_models[crop].predict(features)[0]
-            else:
-                return render_template('price.html', error="Model not available for this crop")
-                
-        except Exception as e:
-            return render_template('price.html', error=f"Error predicting price: {str(e)}")
-            
-    return render_template('price.html', price=price)
+    return render_template('price.html')
 
 # @bp1.route('/crop_rec', methods=['GET','POST'])
 # def crop_rec():
